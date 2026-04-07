@@ -1,0 +1,224 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
+    
+    // Cek apakah user adalah SuperAdmin
+    function isSuperAdmin() {
+      return request.auth != null 
+             && exists(/databases/$(database)/documents/superadmins/$(request.auth.uid));
+    }
+    
+    // Cek apakah user adalah Admin/Owner
+    function isAdmin() {
+      return request.auth != null 
+             && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    // Cek apakah user adalah Mitra (Seller)
+    function isMitra() {
+      return request.auth != null 
+             && (exists(/databases/$(database)/documents/userRoles/$(request.auth.uid))
+             && get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role in ['mitra', 'both']);
+    }
+    
+    // Cek role user
+    function getUserRole() {
+      return get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role;
+    }
+    
+    // ==========================================
+    // ATURAN PRODUK
+    // ==========================================
+    match /products/{productId} {
+      // Siapa saja bisa membaca produk
+      allow read: if true;
+      
+      // Bisa create jika login dan ownerId sesuai
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid;
+      
+      // Hanya pemilik yang bisa update/delete
+      allow update, delete: if request.auth != null 
+                            && resource.data.ownerId == request.auth.uid;
+      
+      // SuperAdmin bisa CRUD semua produk
+      allow write: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // ATURAN USER
+    // ==========================================
+    match /users/{userId} {
+      // User bisa baca/tulis data diri sendiri
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // SuperAdmin bisa baca semua user
+      allow read: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // ATURAN USER ROLES
+    // ==========================================
+    match /userRoles/{userId} {
+      // User bisa baca role sendiri
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Hanya SuperAdmin yang bisa CRUD roles
+      allow write: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // ATURAN ORDER
+    // ==========================================
+    match /orders/{orderId} {
+      // User bisa create order
+      allow create: if request.auth != null;
+      
+      // User bisa baca order mereka sendiri
+      allow read: if request.auth != null 
+                  && (resource.data.customerInfo.uid == request.auth.uid
+                      || resource.data.sellerId == request.auth.uid);
+      
+      // Update order: customer atau seller terkait
+      allow update: if request.auth != null 
+                    && (resource.data.customerInfo.uid == request.auth.uid
+                        || resource.data.sellerId == request.auth.uid);
+      
+      // Delete: hanya SuperAdmin
+      allow delete: if isSuperAdmin();
+      
+      // SuperAdmin bisa CRUD semua order
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // ATURAN SUPERADMINS
+    // ==========================================
+    match /superadmins/{adminId} {
+      // Hanya SuperAdmin yang bisa baca list
+      allow read: if isSuperAdmin();
+      // Tidak ada yang bisa write langsung (hanya via console)
+      allow write: if false;
+    }
+
+    // ==========================================
+    // ATURAN ADMINS (Owner)
+    // ==========================================
+    match /admins/{adminId} {
+      // Hanya Admin/SuperAdmin yang bisa baca
+      allow read: if isAdmin() || isSuperAdmin();
+      // Tidak ada yang bisa write langsung
+      allow write: if false;
+    }
+
+    // ==========================================
+    // ATURAN BANNER - Hanya SuperAdmin
+    // ==========================================
+    match /banners/{bannerId} {
+      // Semua orang bisa membaca banner
+      allow read: if true;
+      // HANYA SuperAdmin yang bisa tulis banner
+      allow write: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // ATURAN PROMO/DISKON
+    // ==========================================
+    match /promos/{promoId} {
+      // Semua orang bisa membaca promo
+      allow read: if true;
+      
+      // User bisa create promo untuk produk mereka
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid;
+      
+      // Update/delete hanya oleh pembuat promo atau SuperAdmin
+      allow update, delete: if request.auth != null 
+                            && (resource.data.ownerId == request.auth.uid || isSuperAdmin());
+    }
+
+    // ==========================================
+    // ATURAN CATEGORIES
+    // ==========================================
+    match /categories/{categoryId} {
+      // Semua orang bisa membaca kategori
+      allow read: if true;
+      // User login bisa CRUD kategori
+      allow write: if request.auth != null;
+    }
+
+    // ==========================================
+    // ATURAN FEED
+    // ==========================================
+    match /feed/{feedId} {
+      // Semua orang bisa baca feed
+      allow read: if true;
+      
+      // User login bisa buat postingan
+      allow create: if request.auth != null 
+                    && request.resource.data.authorUid == request.auth.uid;
+      
+      // Update/delete hanya oleh author atau SuperAdmin
+      allow update, delete: if request.auth != null 
+                            && (resource.data.authorUid == request.auth.uid || isSuperAdmin());
+    }
+
+    // ==========================================
+    // ATURAN CHAT
+    // ==========================================
+    match /chats/{chatId}/messages/{messageId} {
+      // User bisa baca chat jika mereka bagian dari chat
+      allow read: if request.auth != null;
+      
+      // User bisa kirim pesan
+      allow create: if request.auth != null 
+                    && request.resource.data.senderId == request.auth.uid;
+      
+      // Update/delete hanya oleh pengirim atau SuperAdmin
+      allow update, delete: if request.auth != null 
+                            && (resource.data.senderId == request.auth.uid || isSuperAdmin());
+    }
+
+    // ==========================================
+    // ATURAN NOTIFICATIONS
+    // ==========================================
+    match /notifications/{notificationId} {
+      // User bisa baca notifikasi mereka sendiri
+      allow read: if request.auth != null 
+                  && resource.data.userId == request.auth.uid;
+      
+      // Create: sistem atau SuperAdmin
+      allow create: if request.auth != null;
+      
+      // Update: hanya user terkait
+      allow update: if request.auth != null 
+                    && resource.data.userId == request.auth.uid;
+      
+      // Delete: user terkait atau SuperAdmin
+      allow delete: if request.auth != null 
+                    && (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+
+    // ==========================================
+    // ATURAN REVIEWS/RATING
+    // ==========================================
+    match /reviews/{reviewId} {
+      // Semua bisa baca review
+      allow read: if true;
+      
+      // User login bisa buat review
+      allow create: if request.auth != null 
+                    && request.resource.data.authorUid == request.auth.uid;
+      
+      // Update/delete hanya oleh author
+      allow update, delete: if request.auth != null 
+                            && resource.data.authorUid == request.auth.uid;
+    }
+
+  }
+}
