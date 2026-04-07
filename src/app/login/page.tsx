@@ -65,12 +65,29 @@ export default function LoginPage() {
           <form onSubmit={saveCompleteData} className="space-y-4">
             <h2 className="font-bold text-lg text-gray-800">Lengkapi Alamat Kirim</h2>
             <p className="text-xs text-gray-500">Satu langkah lagi agar kami bisa menghitung ongkir otomatis.</p>
-            <input type="tel" placeholder="Nomor WA" required className="w-full p-3 bg-gray-50 rounded-xl outline-none" onChange={e => setPhone(e.target.value)} />
-            <select required className="w-full p-3 bg-gray-50 rounded-xl outline-none" onChange={e => setCityId(e.target.value)}>
+            <input 
+              type="tel" 
+              placeholder="Nomor WA" 
+              required 
+              className="w-full p-3 bg-gray-50 rounded-xl outline-none text-gray-900 border border-gray-200"
+              style={{ color: '#000000' }}
+              onChange={e => setPhone(e.target.value)} 
+            />
+            <select 
+              required 
+              className="w-full p-3 bg-gray-50 rounded-xl outline-none text-gray-900 border border-gray-200"
+              onChange={e => setCityId(e.target.value)}
+            >
               <option value="">Pilih Kota Tujuan</option>
               {daftarKota.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
             </select>
-            <textarea placeholder="Alamat Lengkap (Nama Jalan, No Rumah)" required className="w-full p-3 bg-gray-50 rounded-xl outline-none" onChange={e => setAddress(e.target.value)} />
+            <textarea 
+              placeholder="Alamat Lengkap (Nama Jalan, No Rumah)" 
+              required 
+              className="w-full p-3 bg-gray-50 rounded-xl outline-none text-gray-900 border border-gray-200 resize-none"
+              style={{ color: '#000000' }}
+              onChange={e => setAddress(e.target.value)} 
+            />
             <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Simpan & Mulai Belanja</button>
           </form>
         )}

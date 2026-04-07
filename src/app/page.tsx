@@ -42,54 +42,56 @@ export default function Home() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      // If user logged in, listen for unread messages
+      
       if (u) {
-        // Minta izin notifikasi browser
+        // Request notification permission
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
         }
         
+        // Listen to all chats
         const q = query(collection(db, 'chats'));
-        onSnapshot(q, (snap) => {
+        const unsubChats = onSnapshot(q, (snap) => {
+          let totalUnread = 0;
+          
           snap.docs.forEach(docSnap => {
             const chatData = docSnap.data();
             if (chatData.participants?.includes(u.uid)) {
-              // Hitung pesan yang BELUM DIBACA dari user LAIN
+              // Listen to messages in this chat
               const msgQ = query(
-                collection(db, 'chats', docSnap.id, 'messages'),
-                where('receiverId', '==', u.uid),
-                where('read', '==', false)
+                collection(db, 'chats', docSnap.id, 'messages')
               );
+              
               onSnapshot(msgQ, (msgSnap) => {
-                const unreadCount = msgSnap.size;
-                if (unreadCount > 0) {
-                  setUnreadChatCount(unreadCount);
-                  
-                  // Mainkan suara notifikasi dengan Web Audio API
+                // Count messages where receiver is current user AND read is false or doesn't exist
+                const unread = msgSnap.docs.filter(d => {
+                  const msg = d.data();
+                  return msg.receiverId === u.uid && msg.read !== true;
+                }).length;
+                
+                totalUnread += unread;
+                setUnreadChatCount(totalUnread);
+                
+                // Play sound if there are new messages
+                if (unread > 0) {
                   playNotificationSound();
                   
-                  // Browser notification untuk PWA
+                  // Browser notification
                   if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
                     new Notification('💬 Pesan Baru', {
-                      body: `Anda punya ${unreadCount} pesan belum dibaca`,
+                      body: `Anda punya ${unread} pesan belum dibaca`,
                       icon: '/logo.png',
                       badge: '/logo.png',
                       tag: 'new-message'
                     });
                   }
                 }
-              }, (err) => {
-                if (err.code !== 'permission-denied') {
-                  console.error('Chat listener error:', err);
-                }
               });
             }
           });
-        }, (err) => {
-          if (err.code !== 'permission-denied') {
-            console.error('Chats listener error:', err);
-          }
         });
+        
+        return () => unsubChats();
       } else {
         setUnreadChatCount(0);
       }
@@ -100,12 +102,8 @@ export default function Home() {
   // Fungsi untuk memainkan suara notifikasi
   const playNotificationSound = () => {
     try {
-      // Cek apakah AudioContext didukung
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) {
-        console.log('Audio not supported');
-        return;
-      }
+      if (!AudioContext) return;
       
       const audioContext = new AudioContext();
       const oscillator = audioContext.createOscillator();
@@ -114,17 +112,15 @@ export default function Home() {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Set "ting" sound
-      oscillator.frequency.value = 880; // A5 note
+      oscillator.frequency.value = 880;
       oscillator.type = 'sine';
       gainNode.gain.value = 0.5;
       
-      // Play sound
       oscillator.start(audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
       oscillator.stop(audioContext.currentTime + 0.5);
       
-      // Play second "ting" for double notification sound
+      // Second tone
       setTimeout(() => {
         const osc2 = audioContext.createOscillator();
         const gain2 = audioContext.createGain();
@@ -138,7 +134,7 @@ export default function Home() {
         osc2.stop(audioContext.currentTime + 0.3);
       }, 200);
     } catch (error) {
-      console.log('Error playing notification sound:', error);
+      console.log('Notification sound error:', error);
     }
   };
 
