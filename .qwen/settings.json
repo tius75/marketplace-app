@@ -15,7 +15,9 @@
       "Bash(npm install *)",
       "Bash(vercel *)",
       "Bash(ls *)",
-      "Bash(mkdir *)"
+      "Bash(mkdir *)",
+      "Bash(cat)",
+      "Bash(// *)"
     ]
   },
   "$version": 3

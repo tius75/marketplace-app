@@ -65,11 +65,8 @@ export default function Home() {
                 if (unreadCount > 0) {
                   setUnreadChatCount(unreadCount);
                   
-                  // Mainkan suara notifikasi
-                  try {
-                    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-                    audio.play().catch(() => {});
-                  } catch (e) {}
+                  // Mainkan suara notifikasi dengan Web Audio API
+                  playNotificationSound();
                   
                   // Browser notification untuk PWA
                   if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
@@ -99,6 +96,51 @@ export default function Home() {
     });
     return () => unsub();
   }, []);
+
+  // Fungsi untuk memainkan suara notifikasi
+  const playNotificationSound = () => {
+    try {
+      // Cek apakah AudioContext didukung
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) {
+        console.log('Audio not supported');
+        return;
+      }
+      
+      const audioContext = new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Set "ting" sound
+      oscillator.frequency.value = 880; // A5 note
+      oscillator.type = 'sine';
+      gainNode.gain.value = 0.5;
+      
+      // Play sound
+      oscillator.start(audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      oscillator.stop(audioContext.currentTime + 0.5);
+      
+      // Play second "ting" for double notification sound
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 1100;
+        osc2.type = 'sine';
+        gain2.gain.value = 0.5;
+        osc2.start(audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        osc2.stop(audioContext.currentTime + 0.3);
+      }, 200);
+    } catch (error) {
+      console.log('Error playing notification sound:', error);
+    }
+  };
 
   // Home Icons dari Firestore
   useEffect(() => {
