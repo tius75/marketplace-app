@@ -38,24 +38,50 @@ export default function Home() {
   const totalItems = cart.reduce((total: number, item: any) => total + item.qty, 0);
   const [carouselProducts, setCarouselProducts] = useState<any[]>([]);
 
-  // Auth
+  // Auth & Real-time Chat Notifications
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       // If user logged in, listen for unread messages
       if (u) {
+        // Minta izin notifikasi browser
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+        
         const q = query(collection(db, 'chats'));
         onSnapshot(q, (snap) => {
-          let count = 0;
           snap.docs.forEach(docSnap => {
             const chatData = docSnap.data();
             if (chatData.participants?.includes(u.uid)) {
-              // Count messages in this chat
-              const msgQ = query(collection(db, 'chats', docSnap.id, 'messages'));
+              // Hitung pesan yang BELUM DIBACA dari user LAIN
+              const msgQ = query(
+                collection(db, 'chats', docSnap.id, 'messages'),
+                where('receiverId', '==', u.uid),
+                where('read', '==', false)
+              );
               onSnapshot(msgQ, (msgSnap) => {
-                setUnreadChatCount(msgSnap.size > 0 ? 1 : 0);
+                const unreadCount = msgSnap.size;
+                if (unreadCount > 0) {
+                  setUnreadChatCount(unreadCount);
+                  
+                  // Mainkan suara notifikasi
+                  try {
+                    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+                    audio.play().catch(() => {});
+                  } catch (e) {}
+                  
+                  // Browser notification untuk PWA
+                  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                    new Notification('💬 Pesan Baru', {
+                      body: `Anda punya ${unreadCount} pesan belum dibaca`,
+                      icon: '/logo.png',
+                      badge: '/logo.png',
+                      tag: 'new-message'
+                    });
+                  }
+                }
               }, (err) => {
-                // Silently ignore permission errors
                 if (err.code !== 'permission-denied') {
                   console.error('Chat listener error:', err);
                 }
