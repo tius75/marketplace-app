@@ -65,6 +65,29 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      
+      if (data.url) {
+        await updateDoc(doc(db, "users", user.uid), { photoURL: data.url });
+        setUserData({ ...userData, photoURL: data.url });
+        alert("Foto profil berhasil diperbarui!");
+      }
+    } catch (error: any) {
+      alert("Gagal upload foto: " + error.message);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -86,8 +109,18 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto p-4 space-y-4 mt-4">
         {/* Avatar */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto mb-3">
-            {userData?.name?.charAt(0) || 'U'}
+          <div className="relative inline-block">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-4xl font-bold mx-auto mb-3 overflow-hidden">
+              {userData?.photoURL ? (
+                <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                userData?.name?.charAt(0) || 'U'
+              )}
+            </div>
+            <label className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-blue-700 transition shadow-lg">
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+              📷
+            </label>
           </div>
           <h2 className="font-bold text-lg text-gray-900">{userData?.name || 'User'}</h2>
           <p className="text-sm text-gray-500">{userData?.email}</p>

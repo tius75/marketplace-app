@@ -60,12 +60,13 @@ export default function ChatPage() {
         const usersList = usersSnap.docs.map(d => ({ uid: d.id, id: d.id, ...d.data() }));
         setAllUsers(usersList);
         
+        // Only show online users or recently active
         const simpleConversations = usersList
           .filter((u: any) => u.uid !== user.uid)
           .map((u: any) => ({
             id: u.uid, name: u.displayName || u.name || 'User',
             avatar: u.photoURL || '👤', lastMessage: 'Klik untuk mulai chat',
-            email: u.email || '', uid: u.uid
+            email: u.email || '', uid: u.uid, online: u.online || false
           }));
         setConversations(simpleConversations);
       } catch (error: any) {
@@ -73,6 +74,18 @@ export default function ChatPage() {
       }
     };
     loadUsers();
+    
+    // Real-time update user status
+    const unsubStatus = onSnapshot(collection(db, 'users'), (snap) => {
+      const updatedUsers = snap.docs.map(d => ({ uid: d.id, id: d.id, ...d.data() }));
+      setAllUsers(updatedUsers);
+      setConversations(prev => prev.map(c => {
+        const updated = updatedUsers.find(u => u.uid === c.uid);
+        return updated ? { ...c, online: updated.online || false, avatar: updated.photoURL || c.avatar } : c;
+      }));
+    });
+    
+    return () => unsubStatus();
   }, [user]);
 
   // Load groups
@@ -359,9 +372,21 @@ export default function ChatPage() {
                     const count = unreadCounts[convo.uid] || 0;
                     return (
                       <button key={`${convo.uid}-${index}`} onClick={() => openChat(convo.uid, convo.name)} className="w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition border-b last:border-b-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-xl flex-shrink-0">{convo.avatar === '👤' ? '👤' : <img src={convo.avatar} className="w-full h-full rounded-full" />}</div>
+                        <div className="relative flex-shrink-0">
+                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-xl">
+                            {convo.avatar === '👤' ? '👤' : <img src={convo.avatar} className="w-full h-full rounded-full" />}
+                          </div>
+                          {/* Online/Offline Indicator */}
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${convo.online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        </div>
                         <div className="flex-1 text-left">
-                          <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">{convo.name}{count > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{count}</span>}</h3>
+                          <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                            {convo.name}
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${convo.online ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {convo.online ? '🟢 Online' : '⚫ Offline'}
+                            </span>
+                            {count > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{count}</span>}
+                          </h3>
                           <p className="text-xs text-gray-500">{convo.email || convo.lastMessage}</p>
                         </div>
                         <span className="text-xs text-blue-600 font-bold">Chat →</span>

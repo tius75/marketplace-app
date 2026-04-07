@@ -37,6 +37,7 @@ export default function Home() {
   const cart = useCartStore((state: any) => state.cart);
   const totalItems = cart.reduce((total: number, item: any) => total + item.qty, 0);
   const [carouselProducts, setCarouselProducts] = useState<any[]>([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // Auth & Real-time Chat Notifications
   useEffect(() => {
@@ -44,12 +45,24 @@ export default function Home() {
       setUser(u);
       
       if (u) {
+        // Set user status to ONLINE
+        setDoc(doc(db, 'users', u.uid), { 
+          online: true, 
+          lastSeen: serverTimestamp(),
+          email: u.email,
+          displayName: u.displayName 
+        }, { merge: true });
+        
         // Request notification permission
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
         }
         
-        // Listen to all chats
+        // Listen for logout
+        window.addEventListener('beforeunload', () => {
+          setDoc(doc(db, 'users', u.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
+        });
+        
         const q = query(collection(db, 'chats'));
         const unsubChats = onSnapshot(q, (snap) => {
           let totalUnread = 0;
@@ -57,13 +70,11 @@ export default function Home() {
           snap.docs.forEach(docSnap => {
             const chatData = docSnap.data();
             if (chatData.participants?.includes(u.uid)) {
-              // Listen to messages in this chat
               const msgQ = query(
                 collection(db, 'chats', docSnap.id, 'messages')
               );
               
               onSnapshot(msgQ, (msgSnap) => {
-                // Count messages where receiver is current user AND read is false or doesn't exist
                 const unread = msgSnap.docs.filter(d => {
                   const msg = d.data();
                   return msg.receiverId === u.uid && msg.read !== true;
@@ -72,11 +83,9 @@ export default function Home() {
                 totalUnread += unread;
                 setUnreadChatCount(totalUnread);
                 
-                // Play sound if there are new messages
                 if (unread > 0) {
                   playNotificationSound();
                   
-                  // Browser notification
                   if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
                     new Notification('💬 Pesan Baru', {
                       body: `Anda punya ${unread} pesan belum dibaca`,
@@ -91,7 +100,10 @@ export default function Home() {
           });
         });
         
-        return () => unsubChats();
+        return () => {
+          unsubChats();
+          setDoc(doc(db, 'users', u.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
+        };
       } else {
         setUnreadChatCount(0);
       }
@@ -275,20 +287,30 @@ export default function Home() {
 
               {/* User/Login */}
               {user ? (
-                <div className="relative group">
-                  <button className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-lg">
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-lg"
+                  >
                     {user.displayName?.charAt(0) || 'U'}
                   </button>
                   {/* Dropdown */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    <div className="p-3 border-b">
-                      <p className="font-bold text-sm truncate">{user.displayName || 'User'}</p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  {showProfileMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border z-50">
+                      <div className="p-3 border-b">
+                        <p className="font-bold text-sm truncate">{user.displayName || 'User'}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                      <Link href="/profile" onClick={() => setShowProfileMenu(false)} className="block px-3 py-2 text-sm hover:bg-gray-50">👤 Profil</Link>
+                      <Link href="/cart" onClick={() => setShowProfileMenu(false)} className="block px-3 py-2 text-sm hover:bg-gray-50">🛒 Pesanan Saya</Link>
+                      <button 
+                        onClick={() => { signOut(auth); setShowProfileMenu(false); }} 
+                        className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        🚪 Keluar
+                      </button>
                     </div>
-                    <Link href="/profile" className="block px-3 py-2 text-sm hover:bg-gray-50">👤 Profil</Link>
-                    <Link href="/cart" className="block px-3 py-2 text-sm hover:bg-gray-50">🛒 Pesanan Saya</Link>
-                    <button onClick={() => signOut(auth)} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">🚪 Keluar</button>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <Link href="/login" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition">
