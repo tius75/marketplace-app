@@ -28,52 +28,34 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Security: Validasi ukuran file
+    // Security: Validasi ukuran file (5MB)
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        error: `File terlalu besar. Maksimal 10MB. Ukuran file: ${(file.size / 1024 / 1024).toFixed(2)}MB` 
+      return NextResponse.json({
+        error: `File terlalu besar. Maksimal 5MB. Ukuran file: ${(file.size / 1024 / 1024).toFixed(2)}MB`
       }, { status: 400 });
     }
 
-    // Security: Validasi MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json({ 
-        error: `Tipe file tidak diizinkan. Tipe file: ${file.type}. Tipe yang diizinkan: ${ALLOWED_MIME_TYPES.join(', ')}` 
-      }, { status: 400 });
-    }
-
-    // Security: Validasi ekstensi file (cegah file berbahaya)
-    const fileNameLower = file.name.toLowerCase();
-    const hasValidExt = ALLOWED_EXTENSIONS.some(ext => fileNameLower.endsWith(ext));
-    
-    if (!hasValidExt) {
-      return NextResponse.json({ 
-        error: `Ekstensi file tidak diizinkan. Ekstensi yang diizinkan: ${ALLOWED_EXTENSIONS.join(', ')}` 
-      }, { status: 400 });
-    }
-
-    // Security: Sanitasi nama file (cegah path traversal)
+    // Security: Sanitasi nama file
     const safeFileName = file.name
-      .replace(/[^a-zA-Z0-9._-]/g, '_')  // Ganti karakter berbahaya dengan _
-      .replace(/\.{2,}/g, '.')            // Cegah multiple dots
-      .replace(/^\.+/, '')                // Hapus dots di awal
-      .substring(0, 100);                 // Batasi panjang nama file
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.{2,}/g, '.')
+      .replace(/^\.+/, '')
+      .substring(0, 100);
 
-    // Security: Tambah timestamp untuk uniqueness
     const finalFileName = `${Date.now()}-${safeFileName}`;
-    
+
     const publicUrl = await uploadToR2(file, finalFileName);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       url: publicUrl,
       fileName: safeFileName,
       size: file.size,
-      type: file.type
+      type: file.type || 'unknown'
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ 
-      error: "Gagal upload file. Silakan coba lagi." 
+    return NextResponse.json({
+      error: `Gagal upload: ${error.message}`
     }, { status: 500 });
   }
 }
