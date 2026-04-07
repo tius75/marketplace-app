@@ -10,7 +10,9 @@
       "Bash(tail *)",
       "Bash(mv *)",
       "Bash(git add *)",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(npm ls *)",
+      "Bash(npm install *)"
     ]
   },
   "$version": 3
