@@ -1,6 +1,6 @@
 // src/app/api/parse-link/route.js
 import { NextResponse } from 'next/server';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 export async function POST(request) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request) {
     });
 
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = load(html);
 
     // Parse meta tags
     const name = $('meta[property="og:title"]').attr('content') || '';
