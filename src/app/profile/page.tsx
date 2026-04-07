@@ -72,6 +72,7 @@ export default function ProfilePage() {
     const user = auth.currentUser;
     if (!user) return;
     
+    setUploadingFile(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -79,12 +80,27 @@ export default function ProfilePage() {
       const data = await res.json();
       
       if (data.url) {
+        // Update Firestore
         await updateDoc(doc(db, "users", user.uid), { photoURL: data.url });
-        setUserData({ ...userData, photoURL: data.url });
-        alert("Foto profil berhasil diperbarui!");
+        
+        // Update local state
+        setUserData((prev: any) => ({ ...prev, photoURL: data.url }));
+        
+        // Force refresh user data
+        const updatedSnap = await getDoc(doc(db, "users", user.uid));
+        if (updatedSnap.exists()) {
+          setUserData(updatedSnap.data());
+        }
+        
+        alert("Foto profil berhasil diperbarui! Refresh halaman untuk melihat perubahan.");
+        
+        // Auto refresh
+        window.location.reload();
       }
     } catch (error: any) {
       alert("Gagal upload foto: " + error.message);
+    } finally {
+      setUploadingFile(false);
     }
   };
 

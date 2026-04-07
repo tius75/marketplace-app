@@ -60,7 +60,6 @@ export default function ChatPage() {
         const usersList = usersSnap.docs.map(d => ({ uid: d.id, id: d.id, ...d.data() }));
         setAllUsers(usersList);
         
-        // Only show online users or recently active
         const simpleConversations = usersList
           .filter((u: any) => u.uid !== user.uid)
           .map((u: any) => ({
@@ -75,13 +74,25 @@ export default function ChatPage() {
     };
     loadUsers();
     
-    // Real-time update user status
+    // Real-time listener untuk SEMUA user status
     const unsubStatus = onSnapshot(collection(db, 'users'), (snap) => {
-      const updatedUsers = snap.docs.map(d => ({ uid: d.id, id: d.id, ...d.data() }));
-      setAllUsers(updatedUsers);
+      // Buat map dari semua users
+      const usersMap: Record<string, any> = {};
+      snap.docs.forEach(d => {
+        usersMap[d.id] = { uid: d.id, id: d.id, ...d.data() };
+      });
+      
+      setAllUsers(Object.values(usersMap));
+      
+      // Update conversations dengan status terbaru
       setConversations(prev => prev.map(c => {
-        const updated = updatedUsers.find(u => u.uid === c.uid);
-        return updated ? { ...c, online: updated.online || false, avatar: updated.photoURL || c.avatar } : c;
+        const updatedUser = usersMap[c.uid];
+        return updatedUser ? {
+          ...c,
+          online: updatedUser.online || false,
+          avatar: updatedUser.photoURL || c.avatar,
+          displayName: updatedUser.displayName || c.name
+        } : c;
       }));
     });
     
