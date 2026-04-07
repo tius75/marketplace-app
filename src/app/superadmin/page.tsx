@@ -160,7 +160,7 @@ function DashboardTab({ notify }: any) {
       const q = query(collection(db, 'products'));
       const snap = await getDocs(q);
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setProducts(list);
       setActiveView('products');
     } catch (err: any) {
@@ -175,7 +175,7 @@ function DashboardTab({ notify }: any) {
       const q = query(collection(db, 'orders'));
       const snap = await getDocs(q);
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setOrders(list);
       setActiveView('orders');
     } catch (err: any) {
@@ -365,7 +365,7 @@ function CategoriesTab({ notify }: any) {
     const q = query(collection(db, 'categories'));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (a.order || 999) - (b.order || 999));
+      list.sort((a: any, b: any) => (a.order || 999) - (b.order || 999));
       setCategories(list);
     });
   }, []);
@@ -528,7 +528,7 @@ function ProductsTab({ notify }: any) {
     const q = query(collection(db, 'products'));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setProducts(list);
     });
   }, []);
@@ -607,7 +607,7 @@ function OrdersTab({ notify }: any) {
     const q = query(collection(db, 'orders'));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setOrders(list);
     });
   }, []);
@@ -656,7 +656,7 @@ function BannersTab({ notify }: any) {
   const [gradientTo, setGradientTo] = useState('to-blue-500'); const [priority, setPriority] = useState('1');
   const [startDate, setStartDate] = useState(''); const [endDate, setEndDate] = useState('');
 
-  useEffect(() => { const q = query(collection(db, "banners")); return onSnapshot(q, (snap) => { const list = snap.docs.map(d => ({ id: d.id, ...d.data() })); list.sort((a, b) => (a.priority || 999) - (b.priority || 999)); setBanners(list); }, () => {}); }, []);
+  useEffect(() => { const q = query(collection(db, "banners")); return onSnapshot(q, (snap) => { const list = snap.docs.map(d => ({ id: d.id, ...d.data() })); list.sort((a: any, b: any) => (a.priority || 999) - (b.priority || 999)); setBanners(list); }, () => {}); }, []);
 
   const resetForm = () => { setTitle(''); setSubtitle(''); setEmoji('🎉'); setGradientFrom('from-blue-600'); setGradientTo('to-blue-500'); setPriority('1'); setStartDate(''); setEndDate(''); setEditBanner(null); setShowForm(false); };
   const handleEdit = (b: any) => { setEditBanner(b); setTitle(b.title); setSubtitle(b.subtitle); setEmoji(b.emoji || '🎉'); setGradientFrom(b.gradientFrom || 'from-blue-600'); setGradientTo(b.gradientTo || 'to-blue-500'); setPriority(b.priority?.toString() || '1'); setStartDate(b.startDate ? new Date(b.startDate.toDate()).toISOString().split('T')[0] : ''); setEndDate(b.endDate ? new Date(b.endDate.toDate()).toISOString().split('T')[0] : ''); setShowForm(true); };
@@ -713,7 +713,7 @@ function PromosTab({ notify }: any) {
   const [maxDiscount, setMaxDiscount] = useState(''); const [minPurchase, setMinPurchase] = useState('');
   const [startDate, setStartDate] = useState(''); const [endDate, setEndDate] = useState('');
 
-  useEffect(() => { const q = query(collection(db, "promos")); return onSnapshot(q, (snap) => { const list = snap.docs.map(d => ({ id: d.id, ...d.data() })); list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)); setPromos(list); }, () => {}); }, []);
+  useEffect(() => { const q = query(collection(db, "promos")); return onSnapshot(q, (snap) => { const list = snap.docs.map(d => ({ id: d.id, ...d.data() })); list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)); setPromos(list); }, () => {}); }, []);
 
   const resetForm = () => { setCode(''); setName(''); setType('discount'); setDiscountPercent('10'); setMaxDiscount(''); setMinPurchase(''); setStartDate(''); setEndDate(''); setShowForm(false); };
   const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); setLoading(true); try { await addDoc(collection(db, "promos"), { code: code.toUpperCase(), name, type, discountPercent: parseInt(discountPercent), maxDiscount: maxDiscount ? parseInt(maxDiscount) : null, minPurchase: minPurchase ? parseInt(minPurchase) : null, startDate: startDate ? new Date(startDate) : new Date(), endDate: endDate ? new Date(endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), active: true, createdAt: serverTimestamp() }); notify('Berhasil', 'Promo ditambahkan!'); resetForm(); } catch (err: any) { alert(err.message); } finally { setLoading(false); } };
@@ -775,7 +775,7 @@ function FreeShippingTab({ notify }: any) {
     const q = query(collection(db, "promos"), where("type", "==", "free_shipping"));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setPromos(list);
     }, () => {});
   }, []);
@@ -864,7 +864,7 @@ function HomeIconsTab({ notify }: any) {
     const q = query(collection(db, 'homeIcons'), orderBy('order', 'asc'));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (a.order || 999) - (b.order || 999));
+      list.sort((a: any, b: any) => (a.order || 999) - (b.order || 999));
       setHomeIcons(list);
     });
   }, []);
