@@ -13,8 +13,8 @@ const ALLOWED_MIME_TYPES = [
   'application/pdf'
 ];
 
-// Security: Batasi ukuran file (10MB)
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Security: Batasi ukuran file (4MB - di bawah limit Vercel 4.5MB)
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
 // Security: Validasi ekstensi file
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.webm', '.pdf'];
