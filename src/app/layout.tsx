@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Belanja Mudah - Toko Online",
   description: "Aplikasi Marketplace Modern",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/favicon.ico',
+  },
 };
 
 export const viewport = {
