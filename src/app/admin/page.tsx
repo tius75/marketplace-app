@@ -161,7 +161,7 @@ const ProductList = ({ onEdit, userId }: any) => {
     const q = query(collection(db, "products"), where("ownerId", "==", userId));
     return onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setProducts(list);
     });
   }, [userId]);
