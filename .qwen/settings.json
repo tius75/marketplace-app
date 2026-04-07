@@ -9,7 +9,8 @@
       "Bash(head *)",
       "Bash(tail *)",
       "Bash(mv *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(find *)"
     ]
   },
   "$version": 3
