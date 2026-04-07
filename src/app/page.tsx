@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import NotificationPopup from '@/components/NotificationPopup';
 import { db, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useCartStore } from '@/store/useCartStore';
 
@@ -39,7 +39,7 @@ export default function Home() {
   const [carouselProducts, setCarouselProducts] = useState<any[]>([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  // Auth & Real-time Chat Notifications
+  // Auth & Set Online Status
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -48,68 +48,74 @@ export default function Home() {
         // Set user status to ONLINE
         setDoc(doc(db, 'users', u.uid), { 
           online: true, 
-          lastSeen: serverTimestamp(),
-          email: u.email,
-          displayName: u.displayName 
-        }, { merge: true });
+          lastSeen: serverTimestamp()
+        }, { merge: true }).catch(err => console.log('Set online error:', err));
         
         // Request notification permission
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
         }
-        
-        // Listen for logout
-        window.addEventListener('beforeunload', () => {
-          setDoc(doc(db, 'users', u.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
-        });
-        
-        const q = query(collection(db, 'chats'));
-        const unsubChats = onSnapshot(q, (snap) => {
-          let totalUnread = 0;
-          
-          snap.docs.forEach(docSnap => {
-            const chatData = docSnap.data();
-            if (chatData.participants?.includes(u.uid)) {
-              const msgQ = query(
-                collection(db, 'chats', docSnap.id, 'messages')
-              );
-              
-              onSnapshot(msgQ, (msgSnap) => {
-                const unread = msgSnap.docs.filter(d => {
-                  const msg = d.data();
-                  return msg.receiverId === u.uid && msg.read !== true;
-                }).length;
-                
-                totalUnread += unread;
-                setUnreadChatCount(totalUnread);
-                
-                if (unread > 0) {
-                  playNotificationSound();
-                  
-                  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                    new Notification('💬 Pesan Baru', {
-                      body: `Anda punya ${unread} pesan belum dibaca`,
-                      icon: '/logo.png',
-                      badge: '/logo.png',
-                      tag: 'new-message'
-                    });
-                  }
-                }
-              });
-            }
-          });
-        });
-        
-        return () => {
-          unsubChats();
-          setDoc(doc(db, 'users', u.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
-        };
       } else {
         setUnreadChatCount(0);
       }
     });
     return () => unsub();
   }, []);
+
+  // Listen for unread messages (optimized)
+  useEffect(() => {
+    if (!user) return;
+    
+    const q = query(collection(db, 'chats'));
+    const unsubChats = onSnapshot(q, (snap) => {
+      let totalUnread = 0;
+      
+      snap.docs.forEach(docSnap => {
+        const chatData = docSnap.data();
+        if (chatData.participants?.includes(user.uid)) {
+          const msgQ = query(collection(db, 'chats', docSnap.id, 'messages'));
+          onSnapshot(msgQ, (msgSnap) => {
+            const unread = msgSnap.docs.filter(d => {
+              const msg = d.data();
+              return msg.receiverId === user.uid && msg.read !== true;
+            }).length;
+            
+            totalUnread += unread;
+            setUnreadChatCount(totalUnread);
+            
+            if (unread > 0) {
+              playNotificationSound();
+              
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('💬 Pesan Baru', {
+                  body: `Anda punya ${unread} pesan belum dibaca`,
+                  icon: '/logo.png',
+                  badge: '/logo.png',
+                  tag: 'new-message'
+                });
+              }
+            }
+          });
+        }
+      });
+    });
+    
+    // Set offline on unload
+    const handleUnload = () => {
+      if (user) {
+        setDoc(doc(db, 'users', user.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    
+    return () => {
+      unsubChats();
+      window.removeEventListener('beforeunload', handleUnload);
+      if (user) {
+        setDoc(doc(db, 'users', user.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+      }
+    };
+  }, [user]);
 
   // Fungsi untuk memainkan suara notifikasi
   const playNotificationSound = () => {
